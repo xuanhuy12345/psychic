@@ -21,7 +21,6 @@ library(shinythemes)
 ```
 
 ```{r}
-# Define UI for random distribution app ----
 ui <- fluidPage(
   theme = shinytheme("journal"),
   
@@ -36,8 +35,6 @@ ui <- fluidPage(
                   multiple = TRUE,
                   selectize = TRUE,
                   selected = "sample1"),
-      
-       uiOutput(outputId = "groupID"),
   
        selectInput(inputId = "cardNum",
                   label = "Card Number:",
@@ -45,16 +42,12 @@ ui <- fluidPage(
                   multiple = FALSE,
                   selectize = TRUE),
       
-      uiOutput(outputId = "groupID"),
-      
       selectInput(inputId = "cardAttempts",
                   label = "Card Attempts:",
                   choices = c("10", "20", "50"),
                   multiple = FALSE,
                   selectize = TRUE,
                   selected = "Challenge"),
-      
-      uiOutput(outputId = "groupID"),
       
       selectInput(inputId = "numorprop",
                   label = "Number or Proportion:",
@@ -77,16 +70,11 @@ ui <- fluidPage(
       
       checkboxInput(inputId = "sumstats",
                     label = "Summary Statistics",
-                    value = FALSE),
+                    value = FALSE))),
 
     # Main panel for displaying outputs ----
     mainPanel(
-
-=
-
-    )
-  )
-)
+      plotOutput(outputId = "Plot"))
 )
 # Define server logic for random distribution app ----
 server <- function(input, output) {
