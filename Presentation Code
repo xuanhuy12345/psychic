@@ -1,0 +1,153 @@
+---
+title: "Psychic"
+author: "Huy Nguyen, Lydia Ye"
+date: "2024-05-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+psychic <- read.csv("/Users/admin/Downloads/PsychicApp Sample1 Data - Sheet1.csv")
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(shiny)
+library(shinythemes)
+```
+
+```{r}
+# Define UI for random distribution app ----
+ui <- fluidPage(
+  theme = shinytheme("journal"),
+  
+  titlePanel("Psychic Models"),
+
+  sidebarLayout(
+    sidebarPanel(
+
+      selectInput(inputId = "groupID",
+                  label = "Group ID:", 
+                  choices =  c("all", all_groups),
+                  multiple = TRUE,
+                  selectize = TRUE,
+                  selected = "sample1"),
+      
+      uiOutput(outputId = "player_input"),
+      
+      selectInput(inputId = "levvar",
+                  label = "Level:", 
+                  choices =  c("1", "2", "3", "Challenge"),
+                  multiple = FALSE,
+                  selectize = TRUE,
+                  selected = "Challenge"),
+      
+      selectInput(inputId = "xvar",
+                  label = "X Variable:",
+                  choices = c("Water", "Nitrates"),
+                  selected = "Water",
+                  multiple = FALSE),
+      
+      selectInput(inputId = "yvar",
+                  label = "Y Variable:",
+                  choices = c("Yield", "Revenue", "Costs", "Profit"),
+                  selected = "Yield",
+                  multiple = FALSE),
+      
+      selectInput(inputId = "crop2",
+                  label = "Select Crop",
+                  choices = c("Corn", "Beans", "Tomato"),
+                  multiple = TRUE,
+                  selectize = TRUE,
+                  selected = c("Corn", "Beans", "Tomato")),
+  
+      
+      selectInput(inputId = "facets",
+                  label = "Facet by:",
+                  choices = c("None", "Crop", "Season", "Plot", "PlayerID", "Nitrate"),
+                  selected = "None",
+                  multiple = FALSE),
+      
+      selectInput(inputId = "model",
+                  label = "Statistical Model:",
+                  choices = c("None", "Linear", "Quadratic", "Cubic", "Smoother"),
+                  multiple = FALSE,
+                  selectize = TRUE,
+                  selected = "Linear"),
+      
+      checkboxInput(inputId = "interaction",
+                    label = "Remove Interaction Terms",
+                    value = FALSE),
+      
+      sliderInput("sliderN", label = "Nitrate Levels:", min = 0, 
+                  max = 500, value = c(0, 500)),
+      
+      uiOutput(outputId = "limits"),
+      
+
+    # Main panel for displaying outputs ----
+    mainPanel(
+
+      # Output: Tabset w/ plot, summary, and table ----
+      tabsetPanel(type = "tabs",
+                  tabPanel("Plot", plotOutput("plot")),
+                  tabPanel("Summary", verbatimTextOutput("summary")),
+                  tabPanel("Table", tableOutput("table"))
+      )
+
+    )
+  )
+)
+)
+# Define server logic for random distribution app ----
+server <- function(input, output) {
+
+  # Reactive expression to generate the requested distribution ----
+  # This is called whenever the inputs change. The output functions
+  # defined below then use the value computed from this expression
+  d <- reactive({
+    dist <- switch(input$dist,
+                   norm = rnorm,
+                   unif = runif,
+                   lnorm = rlnorm,
+                   exp = rexp,
+                   rnorm)
+
+    dist(input$n)
+  })
+
+  # Generate a plot of the data ----
+  # Also uses the inputs to build the plot label. Note that the
+  # dependencies on the inputs and the data reactive expression are
+  # both tracked, and all expressions are called in the sequence
+  # implied by the dependency graph.
+  output$plot <- renderPlot({
+    dist <- input$dist
+    n <- input$n
+
+    hist(d(),
+         main = paste("r", dist, "(", n, ")", sep = ""),
+         col = "#75AADB", border = "white")
+  })
+
+  # Generate a summary of the data ----
+  output$summary <- renderPrint({
+    summary(d())
+  })
+
+  # Generate an HTML table view of the data ----
+  output$table <- renderTable({
+    d()
+  })
+
+}
+```
+
+```{r}
+# Create Shiny app ----
+shinyApp(ui, server)
+```
