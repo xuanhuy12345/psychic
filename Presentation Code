@@ -38,6 +38,11 @@ ui <- fluidPage(
                   selected = "sample1"),
       
       uiOutput(outputId = "player_input"),
+
+      selectInput(inputId = "cardNum",
+                  label = "Card Number:",
+                  choices = c("10", "20", "50")
+      ),
       
       selectInput(inputId = "levvar",
                   label = "Level:", 
