@@ -37,72 +37,52 @@ ui <- fluidPage(
                   selectize = TRUE,
                   selected = "sample1"),
       
-      uiOutput(outputId = "player_input"),
-
-      selectInput(inputId = "cardNum",
+       uiOutput(outputId = "groupID"),
+  
+       selectInput(inputId = "cardNum",
                   label = "Card Number:",
-                  choices = c("10", "20", "50")
-      ),
+                  choices = c("2", "5"),
+                  multiple = FALSE,
+                  selectize = TRUE),
       
-      selectInput(inputId = "levvar",
-                  label = "Level:", 
-                  choices =  c("1", "2", "3", "Challenge"),
+      uiOutput(outputId = "groupID"),
+      
+      selectInput(inputId = "cardAttempts",
+                  label = "Card Attempts:",
+                  choices = c("10", "20", "50"),
                   multiple = FALSE,
                   selectize = TRUE,
                   selected = "Challenge"),
       
-      selectInput(inputId = "xvar",
-                  label = "X Variable:",
-                  choices = c("Water", "Nitrates"),
-                  selected = "Water",
-                  multiple = FALSE),
+      uiOutput(outputId = "groupID"),
       
-      selectInput(inputId = "yvar",
-                  label = "Y Variable:",
-                  choices = c("Yield", "Revenue", "Costs", "Profit"),
-                  selected = "Yield",
-                  multiple = FALSE),
-      
-      selectInput(inputId = "crop2",
-                  label = "Select Crop",
-                  choices = c("Corn", "Beans", "Tomato"),
-                  multiple = TRUE,
-                  selectize = TRUE,
-                  selected = c("Corn", "Beans", "Tomato")),
-  
-      
-      selectInput(inputId = "facets",
-                  label = "Facet by:",
-                  choices = c("None", "Crop", "Season", "Plot", "PlayerID", "Nitrate"),
-                  selected = "None",
-                  multiple = FALSE),
-      
-      selectInput(inputId = "model",
-                  label = "Statistical Model:",
-                  choices = c("None", "Linear", "Quadratic", "Cubic", "Smoother"),
+      selectInput(inputId = "numorprop",
+                  label = "Number or Proportion:",
+                  choices = c("Number", "Proportion"),
                   multiple = FALSE,
-                  selectize = TRUE,
-                  selected = "Linear"),
+                  selectize = TRUE ),
       
-      checkboxInput(inputId = "interaction",
-                    label = "Remove Interaction Terms",
+      sliderInput(inputId = "extreme",
+                  label = "As extreme as:",
+                  min = 0,
+                  max = 1,
+                  value = 0),
+      
+      selectInput(inputId = "options",
+                  label = "Options",
+                  choices = c("Binomial Distribution", "Normal Distribution"),
+                  multiple = FALSE,
+                  selectize = TRUE),
+      
+      
+      checkboxInput(inputId = "sumstats",
+                    label = "Summary Statistics",
                     value = FALSE),
-      
-      sliderInput("sliderN", label = "Nitrate Levels:", min = 0, 
-                  max = 500, value = c(0, 500)),
-      
-      uiOutput(outputId = "limits"),
-      
 
     # Main panel for displaying outputs ----
     mainPanel(
 
-      # Output: Tabset w/ plot, summary, and table ----
-      tabsetPanel(type = "tabs",
-                  tabPanel("Plot", plotOutput("plot")),
-                  tabPanel("Summary", verbatimTextOutput("summary")),
-                  tabPanel("Table", tableOutput("table"))
-      )
+=
 
     )
   )
