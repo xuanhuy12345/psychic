@@ -6,7 +6,7 @@ library(readxl)
 
 # Load data
 
-data <- read.csv("/Users/admin/Downloads/PsychicApp Sample1 Data - Sheet1.csv")
+data <- read.csv("/Users/admin/Downloads/PsychicApp Sample1 Data - Sheet1 (1).csv")
 
 # Define UI for the app
 ui <- fluidPage(
@@ -20,7 +20,7 @@ ui <- fluidPage(
       selectInput("numorprop", "Number or Proportion:", choices = c("Number", "Proportion"), selected = "Number"),
       selectInput(inputId = "openOrClosed",
                   label = "Open Deck or Closed Deck:",
-                  choices = c("Open", "Closed"),
+                  choices = c("open", "closed"),
                   multiple = FALSE,
                   selectize = TRUE ),
       uiOutput("sliderUI"),
@@ -33,6 +33,15 @@ ui <- fluidPage(
   )
 )
 server <- function(input, output, session) {
+  filtered_data <- reactive({
+    data %>%
+      filter(
+        NumTries == input$cardAttempts,
+        NumCard == input$cardNum,
+        Deck == input$openOrClosed
+      )
+  })
+  
   output$sliderUI <- renderUI({
     if (input$numorprop == "Number") {
       max_value <- as.numeric(input$cardAttempts)
@@ -43,15 +52,16 @@ server <- function(input, output, session) {
   })
   
   output$Plot <- renderPlot({
+    data_plot <- filtered_data()
     if (input$numorprop == "Number") {
-      ggplot(data, aes(x = Successes, fill = Successes >= input$extreme)) +
-        geom_histogram(binwidth = 1, color = "black", show.legend = FALSE) +
+      ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
+        geom_histogram(binwidth = 1, bins = 10, color = "black", show.legend = FALSE) +
         geom_vline(xintercept = input$extreme - 0.5, color = "blue", size = 1.5) +
         scale_fill_manual(values = c("gray", "lightblue")) + 
         theme_minimal()
     } else {
-      ggplot(data, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
-        geom_histogram(binwidth = 0.1, bins = 10, color = "black", show.legend = FALSE) +
+      ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
+        geom_histogram(binwidth = 0.1, bins = 15, color = "black", show.legend = FALSE) +
         geom_vline(xintercept = input$extreme - 0.05, color = "blue", size = 1.5) +
         scale_fill_manual(values = c("gray", "lightblue")) + 
         theme_minimal()
