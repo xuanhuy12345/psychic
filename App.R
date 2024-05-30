@@ -14,14 +14,55 @@ ui <- fluidPage(
   titlePanel("Psychic Models"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("groupID", "Group ID:", choices = c("sample1"), selected = "sample1"),
-      numericInput("cardNum", "Card Number:", value = 5, min = 1, max = 10),
-      numericInput("cardAttempts", "Card Attempts:", value = 10, min = 1, max = 50),
-      selectInput("numorprop", "Number or Proportion:", choices = c("Number", "Proportion"), selected = "Number"),
-      sliderInput("extreme", "As extreme as:", min = 0, max = 1, value = 0.2, step = 0.05),
-      checkboxGroupInput("options", "Options", choices = c("Binomial Distribution", "Normal Distribution"), selected = "Binomial Distribution"),
-      checkboxInput("sumstats", "Summary Statistics", value = FALSE)
+      selectInput(inputId = "groupID",
+                  label = "Group ID:", 
+                  choices =  c("sample1"),
+                  multiple = TRUE,
+                  selectize = TRUE,
+                  selected = "sample1"),
+      
+      selectInput(inputId = "cardNum",
+                  label = "Card Number:",
+                  choices = c("2", "5"),
+                  multiple = FALSE,
+                  selectize = TRUE),
+      
+      selectInput(inputId = "cardAttempts",
+                  label = "Card Attempts:",
+                  choices = c("10", "20", "50"),
+                  multiple = FALSE,
+                  selectize = TRUE,
+                  selected = "Challenge"),
+      
+      selectInput(inputId = "numorprop",
+                  label = "Number or Proportion:",
+                  choices = c("Number", "Proportion"),
+                  multiple = FALSE,
+                  selectize = TRUE ),
+      
+      selectInput(inputId = "openOrClosed",
+                  label = "Open Deck or Closed Deck:",
+                  choices = c("Open", "Closed"),
+                  multiple = FALSE,
+                  selectize = TRUE ),
+
+      sliderInput(inputId = "extreme",
+                  label = "As extreme as:",
+                  min = 0,
+                  max = 1,
+                  value = 0,
+                  step = 0.1),
+  
+      checkboxGroupInput(inputId = "options", 
+                         label = "Options", 
+                         choices = c("Binomial Distribution", "Normal Distribution"), 
+                         selected = "Binomial Distribution"),
+      
+      checkboxInput(inputId = "sumstats", 
+                    "Summary Statistics", 
+                    value = FALSE)
     ),
+    
     mainPanel(
       plotOutput("Plot"),
       verbatimTextOutput("statsOut")
@@ -51,9 +92,9 @@ server <- function(input, output) {
     data_to_plot <- data.frame(Successes = 0:input$cardAttempts, Probability = probs)
     ggplot(data_to_plot, aes(x = Successes, y = Probability, fill = Successes >= p_extreme)) +
       geom_col(show.legend = FALSE) +
-      scale_fill_manual(values = c("gray", "blue")) +
-      geom_vline(xintercept = p_extreme - 0.5, color = "red", linetype = "dashed", size = 1.2) +
-      labs(title = "Histogram of ESP Game Successes", subtitle = paste("As extreme as (>=)", p_extreme),
+      scale_fill_manual(values = c("gray", "light blue")) +
+      geom_vline(xintercept = p_extreme - 0.5, color = "blue", linetype = "dashed", size = 1.2) +
+      labs(title = "Histogram", subtitle = paste("As extreme as (>=)", p_extreme),
            x = "Number of Successes", y = "Probability Density") +
       theme_minimal()
   })
@@ -70,3 +111,5 @@ server <- function(input, output) {
 
 # Run the application
 shinyApp(ui = ui, server = server)
+
+
