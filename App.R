@@ -56,7 +56,8 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      plotOutput("Plot")
+      plotOutput("Plot"),
+      uiOutput("summaryStatsUI")
     )
   )
 )
@@ -138,16 +139,17 @@ server <- function(input, output, session) {
     # Add Normal Distribution Overlay
     if ("Normal Distribution" %in% input$options) {
       if (input$numOrProp == "Number") {
-        norm_data <- data.frame(x = seq(min(binom_data$Successes), max(binom_data$Successes)), length.out = 300)
-        norm_data$y <- dnorm(norm_data$x, mean, sd) * total_counts
-        p <- p + geom_line(data = norm_data, aes(x = x, y = y), color = "darkred") 
+        norm_data <- data.frame(x = seq(min(data_plot$Successes), max(data_plot$Successes), length.out = 300))
+        norm_data$y <- dnorm(norm_data$x, mean, sd) *  diff(hist(data_plot$Successes, plot = FALSE)$breaks)[1] * nrow(data_plot)
+        p <- p + geom_line(data = norm_data, aes(y = y), color = "darkred", size = 1) 
       }
     }
     
     return(p)  # return the plot
     
   })
-    output$summaryStatsUI <- renderUI({
+  
+  output$summaryStatsUI <- renderUI({
     if (input$sumstats) {
       data_stats <- filtered_data()
       stats <- data_stats %>%
