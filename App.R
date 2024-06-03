@@ -5,111 +5,148 @@ library(dplyr)
 library(readxl)
 
 # Load data
-# Ensure that "PsychicApp Sample1 Data.xlsx" is in the working directory or provide the full path.
-PsychicApp_Sample1_Data <- read_excel("PsychicApp Sample1 Data.xlsx")
+data <- read_excel("PsychicApp Sample1 Data (1).xlsx")
+
 
 # Define UI for the app
 ui <- fluidPage(
   theme = shinytheme("journal"),
   titlePanel("Psychic Models"),
+  
   sidebarLayout(
     sidebarPanel(
-      selectInput(inputId = "groupID",
-                  label = "Group ID:", 
-                  choices =  c("sample1"),
-                  multiple = TRUE,
-                  selectize = TRUE,
+      selectInput("groupID", 
+                  "Group ID:", 
+                  choices = c("sample1"), 
                   selected = "sample1"),
       
-      selectInput(inputId = "cardNum",
-                  label = "Card Number:",
-                  choices = c("2", "5"),
-                  multiple = FALSE,
-                  selectize = TRUE),
+      selectInput("cardNum", 
+                  "Card Numbers:", 
+                  choices = c(2,5), 
+                  selected = 2, 
+                  multiple = FALSE),
       
-      selectInput(inputId = "cardAttempts",
-                  label = "Card Attempts:",
-                  choices = c("10", "20", "50"),
-                  multiple = FALSE,
-                  selectize = TRUE,
-                  selected = "Challenge"),
+      selectInput("cardAttempts", 
+                  "Card Attempts:", 
+                  choices = c(10,20,50), 
+                  selected = 10, 
+                  multiple = FALSE),
       
-      selectInput(inputId = "numorprop",
-                  label = "Number or Proportion:",
-                  choices = c("Number", "Proportion"),
-                  multiple = FALSE,
-                  selectize = TRUE ),
+      selectInput("numOrProp", 
+                  "Number or Proportion:", 
+                  choices = c("Number", "Proportion"), 
+                  selected = "Number"),
       
       selectInput(inputId = "openOrClosed",
                   label = "Open Deck or Closed Deck:",
-                  choices = c("Open", "Closed"),
+                  choices = c("open", "closed"),
                   multiple = FALSE,
                   selectize = TRUE ),
-
-      sliderInput(inputId = "extreme",
-                  label = "As extreme as:",
-                  min = 0,
-                  max = 1,
-                  value = 0,
-                  step = 0.1),
-  
-      checkboxGroupInput(inputId = "options", 
-                         label = "Options", 
-                         choices = c("Binomial Distribution", "Normal Distribution"), 
-                         selected = "Binomial Distribution"),
       
-      checkboxInput(inputId = "sumstats", 
+      uiOutput("sliderUI"),
+      
+      checkboxGroupInput("options", 
+                         "Options", 
+                         choices = c("Binomial Distribution",  "Normal Distribution", "Hypergeometric Distribution"), 
+                         selected = "None"),
+      
+      checkboxInput("sumstats", 
                     "Summary Statistics", 
                     value = FALSE)
     ),
     
     mainPanel(
-      plotOutput("Plot"),
-      verbatimTextOutput("statsOut")
+      plotOutput("Plot")
     )
   )
 )
 
-# Define server logic for the app
-server <- function(input, output) {
-  output$Plot <- renderPlot({
-    if (input$numorprop == "Number") {
-      p_extreme <- input$extreme
-    } else {  # If proportion is selected, calculate the number based on the proportion
-      p_extreme <- round(input$cardAttempts * input$extreme)
-    }
-    
-    # Calculate probabilities based on the selected distribution
-    if ("Binomial Distribution" %in% input$options) {
-      probs <- dbinom(0:input$cardAttempts, size = input$cardAttempts, prob = 1/input$cardNum)
-    } else if ("Normal Distribution" %in% input$options) {
-      mean_val <- input$cardAttempts * (1/input$cardNum)
-      sd_val <- sqrt(input$cardAttempts * (1/input$cardNum) * (1 - 1/input$cardNum))
-      probs <- dnorm(0:input$cardAttempts, mean = mean_val, sd = sd_val)
-    }
-    
-    # Plotting
-    data_to_plot <- data.frame(Successes = 0:input$cardAttempts, Probability = probs)
-    ggplot(data_to_plot, aes(x = Successes, y = Probability, fill = Successes >= p_extreme)) +
-      geom_col(show.legend = FALSE) +
-      scale_fill_manual(values = c("gray", "light blue")) +
-      geom_vline(xintercept = p_extreme - 0.5, color = "blue", linetype = "dashed", size = 1.2) +
-      labs(title = "Histogram", subtitle = paste("As extreme as (>=)", p_extreme),
-           x = "Number of Successes", y = "Probability Density") +
-      theme_minimal()
+# Define Server for the app
+server <- function(input, output, session) {
+  # Filter the data set based on the user's selection
+  filtered_data <- reactive({
+    data %>%
+      filter(
+        NumTries == input$cardAttempts,
+        NumCard == input$cardNum,
+        Deck == input$openOrClosed
+      )
   })
   
-  # Optional: Display summary statistics
-  output$statsOut <- renderPrint({
-    if (input$sumstats) {
-      mean_val <- mean(data_to_plot$Successes * data_to_plot$Probability)
-      sd_val <- sqrt(var(data_to_plot$Successes * data_to_plot$Probability))
-      cat("Mean:", mean_val, "\n", "Standard Deviation:", sd_val, "\n")
+  
+  # Generate different slider UI for number or proportion inputs.
+  output$sliderUI <- renderUI({
+    if (input$numOrProp == "Number") {
+      max_value <- as.numeric(input$cardAttempts)
+      sliderInput("extreme", 
+                  "As extreme as:", 
+                  min = 0, 
+                  max = max_value, 
+                  value = 2, step = 1)
+    } else {
+      sliderInput("extreme", 
+                  "As extreme as:", 
+                  min = 0, 
+                  max = 1, 
+                  value = 0.2, 
+                  step = 0.1)
+    } # if/else
+  }) # output$sliderUI 
+  
+  
+  output$Plot <- renderPlot({
+    # Get filtered data
+    data_plot <- filtered_data()
+    total_counts <- nrow(data_plot)
+    
+    # Generate histogram for the chosen data
+    p <- if (input$numOrProp == "Number") { 
+      # Histogram for number data
+      ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
+        geom_histogram(binwidth = 1, bins = 10, color = "white", alpha = 1, show.legend = FALSE) +
+        geom_vline(xintercept = input$extreme - 0.5, color = "blue", linetype="dashed", size = 1) +
+        scale_fill_manual(values = c("gray", "lightblue")) + 
+        theme_minimal()
+    } else {
+      # Histogram for proportion data
+      ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
+        geom_histogram(binwidth = 0.1, bins = 10, color = "white", alpha = 1, show.legend = FALSE) +
+        geom_vline(xintercept = input$extreme - 0.05, color = "blue", linetype="dashed", size = 1) +
+        scale_fill_manual(values = c("gray", "lightblue")) + 
+        theme_minimal()
+    } # if/else
+    
+    prob <- ifelse(as.numeric(input$cardNum) == 5, 0.2, 0.5)
+    mean <- as.numeric(input$cardAttempts) * prob
+    sd <- sqrt(as.numeric(input$cardAttempts) * prob * (1 - prob))
+    
+    # Add Binomial Distribution Overlay
+    if ("Binomial Distribution" %in% input$options) {
+      if (input$numOrProp == "Number") {
+        # Binomial distribution for number data
+        binom_data <- data.frame(Successes = 0:as.numeric(input$cardAttempts))
+        binom_data$Frequency <- dbinom(binom_data$Successes, size = as.numeric(input$cardAttempts), prob = prob) * total_counts
+        p <- p + geom_bar(data = binom_data, aes(y = Frequency), stat = "identity", width = 0.1, fill = "red", alpha = 0.8, position = "identity")
+      } else {
+        # Binomial distribution for proportion data
+        binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
+        binom_data$Frequency <- dbinom(0:as.numeric(input$cardAttempts), size = as.numeric(input$cardAttempts), prob = prob) * total_counts
+        p <- p + geom_bar(data = binom_data, aes(x = Proportion, y = Frequency), stat = "identity", width = 0.01, fill = "red", alpha = 0.8, position = "identity")
+      } # if/else
+    } # if/else
+    
+    # Add Normal Distribution Overlay
+    if ("Normal Distribution" %in% input$options) {
+      if (input$numOrProp == "Number") {
+        norm_data <- data.frame(x = seq(min(binom_data$Successes), max(binom_data$Successes)), length.out = 300)
+        norm_data$y <- dnorm(norm_data$x, mean, sd) * total_counts
+        p <- p + geom_line(data = norm_data, aes(x = x, y = y), color = "darkred") 
+      }
     }
+    
+    return(p)  # return the plot
+    
   })
 }
 
-# Run the application
 shinyApp(ui = ui, server = server)
-
-
