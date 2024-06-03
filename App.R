@@ -147,6 +147,36 @@ server <- function(input, output, session) {
     return(p)  # return the plot
     
   })
+    output$summaryStatsUI <- renderUI({
+    if (input$sumstats) {
+      data_stats <- filtered_data()
+      stats <- data_stats %>%
+        summarise(
+          Mean = mean(Successes),
+          Median = median(Successes),
+          SD = sd(Successes),
+          Min = min(Successes),
+          Max = max(Successes)
+        )
+      fluidRow(
+        column(12, tableOutput("summaryStatsTable"))
+      )
+    }
+  })
+  
+  output$summaryStatsTable <- renderTable({
+    if (input$sumstats) {
+      data_stats <- filtered_data()
+      data_stats %>%
+        summarise(
+          Mean = mean(Successes),
+          Median = median(Successes),
+          SD = sd(Successes),
+          Min = min(Successes),
+          Max = max(Successes)
+        )
+    }
+  })
 }
 
 shinyApp(ui = ui, server = server)
