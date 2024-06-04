@@ -165,17 +165,8 @@ server <- function(input, output, session) {
     return(p)
   })
   
-  output$summaryStatsUI <- renderUI({
+    output$summaryStatsUI <- renderUI({
     if (input$sumstats) {
-      data_stats <- filtered_data()
-      stats <- data_stats %>%
-        summarise(
-          Mean = mean(Successes),
-          Median = median(Successes),
-          SD = sd(Successes),
-          Min = min(Successes),
-          Max = max(Successes)
-        )
       fluidRow(
         column(12, tableOutput("summaryStatsTable"))
       )
@@ -185,16 +176,39 @@ server <- function(input, output, session) {
   output$summaryStatsTable <- renderTable({
     if (input$sumstats) {
       data_stats <- filtered_data()
-      data_stats %>%
-        summarise(
-          Mean = mean(Successes),
-          Median = median(Successes),
-          SD = sd(Successes),
-          Min = min(Successes),
-          Max = max(Successes)
-        )
+      cardAttempts <- as.numeric(input$cardAttempts)
+      extreme <- as.numeric(input$extreme)
+      cardNum <- as.numeric(input$cardNum)
+      data.frame(
+        Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+        Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
+        Theoretical = c(cardAttempts / cardNum, sqrt(cardAttempts * (cardNum-1) / cardNum^2), 0, qbinom(0.25, cardAttempts, 1 / cardNum), qbinom(0.5, cardAttempts, 1 / cardNum), qbinom(0.75, cardAttempts, 1 / cardNum), cardAttempts)
+      )
     }
   })
-}
+  
+  output$binomDistUI <- renderUI({
+    if (input$sumstats) {
+      fluidRow(
+        column(12, tableOutput("binomDistTable"))
+      )
+    }
+  })
+  
+  output$binomDistTable <- renderTable({
+    # Ensure all inputs are numeric
+    cardAttempts <- as.numeric(input$cardAttempts)
+    extreme <- as.numeric(input$extreme)
+    cardNum <- as.numeric(input$cardNum)
+    binom <- if (input$numorprop == "Number") {
+      result <- pbinom(extreme * 1000 / cardAttempts, size = 1000, prob = 1 / cardNum, lower.tail = FALSE)
+    } else {
+      result <- pbinom(extreme * 1000, size = 1000, prob = 1 / cardNum, lower.tail = FALSE)
+    }
+    data.frame(
+      
+    )
+  })
+}}
 
 shinyApp(ui = ui, server = server)
