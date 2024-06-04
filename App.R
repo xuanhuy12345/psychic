@@ -5,6 +5,8 @@ library(readxl)
 
 # Load data
 data <- PsychicApp_Sample1_Data
+data <- data %>% 
+  mutate(successratio = Successes / NumTries) 
 
 
 # Define UI for the app
@@ -56,7 +58,8 @@ ui <- fluidPage(
     mainPanel(
       
       plotOutput("Plot"),
-      uiOutput("summaryStatsUI")
+      uiOutput("summaryStatsUI"),
+      uiOutput("binomDistUI")
     )
   )
 )
@@ -211,18 +214,30 @@ server <- function(input, output, session) {
     }
   })
   
-  output$binomDistTable <- renderTable({
+    output$binomDistTable <- renderTable({
     # Ensure all inputs are numeric
     cardAttempts <- as.numeric(input$cardAttempts)
     extreme <- as.numeric(input$extreme)
     cardNum <- as.numeric(input$cardNum)
-    binom <- if (input$numorprop == "Number") {
-      result <- pbinom(extreme * 1000 / cardAttempts, size = 1000, prob = 1 / cardNum, lower.tail = FALSE)
+    data_stats <- filtered_data()
+    sample <- if (input$numOrProp == "Number") {
+      sum(data_stats$Successes>=extreme) / nrow(data_stats)
     } else {
-      result <- pbinom(extreme * 1000, size = 1000, prob = 1 / cardNum, lower.tail = FALSE)
+      sum(data_stats$successratio>=extreme) / nrow(data_stats)
+    }
+    binom <- if (input$numOrProp == "Number") {
+      pbinom(extreme * 1000 / cardAttempts, size = 1000, prob = 1 / cardNum, lower.tail = FALSE)
+    } else {
+      pbinom(extreme * 1000, size = 1000, prob = 1 / cardNum, lower.tail = FALSE)
+    }
+    norm <- if (input$numOrProp == "Number") {
+      pnorm(extreme / cardAttempts, mean = 1000 / cardNum, sd = sqrt(cardAttempts * (cardNum-1)) / cardNum, lower.tail = FALSE)
+    } else {
+      pnorm(extreme, mean = 1000 / cardNum, sd = sqrt(cardAttempts * (cardNum-1)) / cardNum, lower.tail = FALSE)
     }
     data.frame(
-      
+      Type = c("Sample", "Binomial Distribution", "Normal Distribution"),
+      Probability = c(sample , binom, norm)
     )
   })
 }
