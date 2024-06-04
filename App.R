@@ -43,10 +43,10 @@ ui <- fluidPage(
       
       uiOutput("sliderUI"),
       
-      checkboxGroupInput("options", 
-                         "Options", 
-                         choices = c("Binomial Distribution",  "Normal Distribution", "Hypergeometric Distribution"), 
-                         selected = "None"),
+     radioButtons("options",
+                   "Options",
+                   choices = c("Binomial Distribution", "Normal Distribution", "None"),
+                   selected = "None"),
       
       checkboxInput("sumstats", 
                     "Summary Statistics", 
@@ -182,11 +182,24 @@ server <- function(input, output, session) {
       cardAttempts <- as.numeric(input$cardAttempts)
       extreme <- as.numeric(input$extreme)
       cardNum <- as.numeric(input$cardNum)
-      data.frame(
-        Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
-        Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
-        Theoretical = c(cardAttempts / cardNum, sqrt(cardAttempts * (cardNum-1) / cardNum^2), 0, qbinom(0.25, cardAttempts, 1 / cardNum), qbinom(0.5, cardAttempts, 1 / cardNum), qbinom(0.75, cardAttempts, 1 / cardNum), cardAttempts)
-      )
+      if (input$options == "Binomial Distribution") {
+        data.frame(
+          Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
+          Theoretical = c(cardAttempts * 1 / cardNum, sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), 0, qbinom(0.25, cardAttempts, 1 / cardNum), qbinom(0.5, cardAttempts, 1 / cardNum), qbinom(0.75, cardAttempts, 1 / cardNum), cardAttempts)
+        )
+      } else if (input$options == "Normal Distribution") {
+        data.frame(
+          Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
+          Theoretical = c(cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), -Inf, qnorm(0.25, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.5, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.75, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), Inf)
+        )
+      } else {
+        data.frame(
+          Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes))
+        )
+      }
     }
   })
   
