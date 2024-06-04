@@ -56,7 +56,8 @@ ui <- fluidPage(
     mainPanel(
       
       plotOutput("Plot"),
-      uiOutput("summaryStatsUI")
+      uiOutput("summaryStatsUI"),
+      uiOutput("binomDistUI")
     )
   )
 )
