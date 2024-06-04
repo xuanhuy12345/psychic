@@ -1,16 +1,14 @@
 library(shiny)
-library(shinythemes)
 library(ggplot2)
 library(dplyr)
 library(readxl)
 
 # Load data
-data <- read_excel("PsychicApp Sample1 Data (1).xlsx")
+data <- PsychicApp_Sample1_Data
 
 
 # Define UI for the app
 ui <- fluidPage(
-  theme = shinytheme("journal"),
   titlePanel("Psychic Models"),
   
   sidebarLayout(
@@ -158,8 +156,8 @@ server <- function(input, output, session) {
         p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), col = "yellow", lwd = 1)
       } else {
         p <- p + stat_function(fun = function(x) {
-             scaled_x <- x * (as.numeric(input$cardAttempts))  
-             total_counts * dnorm(scaled_x, mean = mean, sd = sd)
+          scaled_x <- x * (as.numeric(input$cardAttempts))  
+          total_counts * dnorm(scaled_x, mean = mean, sd = sd)
         }, xlim = c(0, 1), col = "yellow", lwd = 1)
       }
     }
