@@ -56,6 +56,7 @@ ui <- fluidPage(
     ),
     
     mainPanel(
+      
       plotOutput("Plot"),
       uiOutput("summaryStatsUI")
     )
@@ -83,13 +84,13 @@ server <- function(input, output, session) {
                   "As extreme as:", 
                   min = 0, 
                   max = max_value, 
-                  value = 2, step = 1)
+                  value = 7, step = 1)
     } else {
       sliderInput("extreme", 
                   "As extreme as:", 
                   min = 0, 
                   max = 1, 
-                  value = 0.2, 
+                  value = 0.7, 
                   step = 0.1)
     } # if/else
   }) # output$sliderUI 
@@ -104,17 +105,29 @@ server <- function(input, output, session) {
     p <- if (input$numOrProp == "Number") { 
       # Histogram for number data
       ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
-        geom_histogram(binwidth = 1, bins = 10, color = "white", alpha = 1, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.5, color = "blue", linetype="dashed", size = 1) +
-        scale_fill_manual(values = c("gray", "lightblue")) + 
-        theme_minimal()
+        geom_histogram(binwidth = 1, bins = 10, color = "white", alpha = 1, show.legend = FALSE,cex.axis = 2) +
+        geom_vline(xintercept = input$extreme - 0.5, color = "darkred",  linetype = "dashed", size = 1) +
+        scale_fill_manual(values = c("gray", "orange")) + 
+        labs(
+          title = "Histogram of Proportion of Successes",
+          y = "Frequency",
+          x = "Number of Successes"
+        ) +
+        theme_grey() +
+        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
     } else {
       # Histogram for proportion data
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
         geom_histogram(binwidth = 0.1, bins = 10, color = "white", alpha = 1, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.05, color = "blue", linetype="dashed", size = 1) +
-        scale_fill_manual(values = c("gray", "lightblue")) + 
-        theme_minimal()
+        geom_vline(xintercept = input$extreme - 0.05, color = "darkred", linetype = "dashed", size = 1) +
+        scale_fill_manual(values = c("gray", "orange")) + 
+        labs(
+          title = "Histogram of Proportion of Successes",
+          y = "Frequency",
+          x = "Proportion of Successes"
+        ) +
+        theme_grey() +
+        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
     } # if/else
     
     prob <- ifelse(as.numeric(input$cardNum) == 5, 0.2, 0.5)
@@ -139,14 +152,19 @@ server <- function(input, output, session) {
     # Add Normal Distribution Overlay
     if ("Normal Distribution" %in% input$options) {
       if (input$numOrProp == "Number") {
-        norm_data <- data.frame(x = seq(min(data_plot$Successes), max(data_plot$Successes), length.out = 300))
-        norm_data$y <- dnorm(norm_data$x, mean, sd) *  diff(hist(data_plot$Successes, plot = FALSE)$breaks)[1] * nrow(data_plot)
-        p <- p + geom_line(data = norm_data, aes(y = y), color = "darkred", size = 1) 
+        #norm_data <- data.frame(x = seq(min(data_plot$Successes), max(data_plot$Successes), length.out = 300))
+        #norm_data$y <- dnorm(norm_data$x, mean, sd) *  diff(hist(data_plot$Successes, plot = FALSE)$breaks)[1]
+        #p <- p + geom_line(data=norm_data,aes(x=x,y=y),color='red')
+        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), col = "yellow", lwd = 1)
+      } else {
+        p <- p + stat_function(fun = function(x) {
+             scaled_x <- x * (as.numeric(input$cardAttempts))  
+             total_counts * dnorm(scaled_x, mean = mean, sd = sd)
+        }, xlim = c(0, 1), col = "yellow", lwd = 1)
       }
     }
     
-    return(p)  # return the plot
-    
+    return(p)
   })
   
   output$summaryStatsUI <- renderUI({
