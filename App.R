@@ -130,9 +130,8 @@ server <- function(input, output, session) {
           x = "Proportion of Successes"
         ) +
         theme_grey() +
-        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold")) +
-        # scale_x_continuous(breaks = scales::breaks_extended(Q = c(1, 5, 2, 4, 3))) 
-        scale_x_continuous(breaks = seq(0, 10, by = 1))
+        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
+        
     } # if/else
     
     prob <- ifelse(as.numeric(input$cardNum) == 5, 0.2, 0.5)
@@ -159,12 +158,25 @@ server <- function(input, output, session) {
     # Add Normal Distribution Overlay
     if ("Normal Distribution" %in% input$options) {
       if (input$numOrProp == "Number") {
-        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), col = "yellow", lwd = 1)
+        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
+                               geom = "area", fill = "yellow", alpha = 0.2, lwd = 1, 
+                               xlim = c(0, input$extreme - 0.5))
+        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
+                              geom = "area", fill = "orange", alpha = 0.2, lwd = 1, 
+                              xlim = c(input$extreme - 0.5, as.numeric(input$cardAttempts)))
       } else {
         p <- p + stat_function(fun = function(x) {
-          scaled_x <- x * (as.numeric(input$cardAttempts))  
-          total_counts * dnorm(scaled_x, mean = mean, sd = sd)
-        }, xlim = c(0, 1), col = "yellow", lwd = 1)
+                                scaled_x <- x * (as.numeric(input$cardAttempts))  
+                                total_counts * dnorm(scaled_x, mean = mean, sd = sd)
+                              }, 
+                              geom = "area", fill = "yellow", alpha = 0.2,
+                              xlim = c(0, input$extreme - 0.05))
+        p <- p + stat_function(fun = function(x) {
+                                    scaled_x <- x * (as.numeric(input$cardAttempts))  
+                                    total_counts * dnorm(scaled_x, mean = mean, sd = sd)
+                                  }, 
+                               geom = "area", fill = "orange", alpha = 0.2, lwd = 1, 
+                               xlim = c(input$extreme - 0.05, 1))
       }
     }
     
@@ -192,16 +204,16 @@ server <- function(input, output, session) {
           Theoretical = c(cardAttempts * 1 / cardNum, sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), 0, qbinom(0.25, cardAttempts, 1 / cardNum), qbinom(0.5, cardAttempts, 1 / cardNum), qbinom(0.75, cardAttempts, 1 / cardNum), cardAttempts)
         )
       } else if (input$options == "Normal Distribution") {
-          data.frame(
-            Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
-            Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
-            Theoretical = c(cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), -Inf, qnorm(0.25, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.5, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.75, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), Inf)
-          )
+        data.frame(
+          Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
+          Theoretical = c(cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), -Inf, qnorm(0.25, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.5, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.75, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), Inf)
+        )
       } else {
-          data.frame(
-            Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
-            Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes))
-          )
+        data.frame(
+          Statistics = c("Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes))
+        )
       }
     }
   })
@@ -214,7 +226,7 @@ server <- function(input, output, session) {
     }
   })
   
-    output$binomDistTable <- renderTable({
+  output$binomDistTable <- renderTable({
     # Ensure all inputs are numeric
     cardAttempts <- as.numeric(input$cardAttempts)
     extreme <- as.numeric(input$extreme)
