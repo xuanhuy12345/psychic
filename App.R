@@ -56,8 +56,7 @@ ui <- fluidPage(
     mainPanel(
       
       plotOutput("Plot"),
-      uiOutput("summaryStatsUI"),
-      uiOutput("binomDistUI")
+      uiOutput("summaryStatsUI")
     )
   )
 )
@@ -119,7 +118,7 @@ server <- function(input, output, session) {
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
         geom_histogram(binwidth = 0.1, bins = 10, color = "white", alpha = 1, show.legend = FALSE) +
         geom_vline(xintercept = input$extreme - 0.05, color = "darkred", linetype = "dashed", size = 1) +
-        scale_fill_manual(values = c("gray", "orange")) + 
+        scale_fill_manual(values = c("gray", "orange", "red", "pink")) + 
         labs(
           title = "Histogram of Proportion of Successes",
           y = "Frequency",
@@ -139,12 +138,15 @@ server <- function(input, output, session) {
         # Binomial distribution for number data
         binom_data <- data.frame(Successes = 0:as.numeric(input$cardAttempts))
         binom_data$Frequency <- dbinom(binom_data$Successes, size = as.numeric(input$cardAttempts), prob = prob) * total_counts
-        p <- p + geom_bar(data = binom_data, aes(y = Frequency), stat = "identity", width = 0.1, fill = "red", alpha = 0.8, position = "identity")
+        p <- p + geom_histogram(data = binom_data, aes(y = Frequency, fill = binom_data$Successes >= input$extreme), 
+                                binwidth = 1, bins = 10, stat = "identity", color = "red", alpha = 0.3, position = "identity")
       } else {
         # Binomial distribution for proportion data
         binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
         binom_data$Frequency <- dbinom(0:as.numeric(input$cardAttempts), size = as.numeric(input$cardAttempts), prob = prob) * total_counts
-        p <- p + geom_bar(data = binom_data, aes(x = Proportion, y = Frequency), stat = "identity", width = 0.01, fill = "red", alpha = 0.8, position = "identity")
+        p <- p + geom_histogram(data = binom_data, aes(x = Proportion, y = Frequency, fill = binom_data$Proportion >= input$extreme), 
+                                binwidth = 0.1, bins = 10, stat = "identity", color = "red", alpha = 0.3, position = "identity")
+        
       } # if/else
     } # if/else
     
@@ -166,7 +168,7 @@ server <- function(input, output, session) {
     return(p)
   })
   
-    output$summaryStatsUI <- renderUI({
+  output$summaryStatsUI <- renderUI({
     if (input$sumstats) {
       fluidRow(
         column(12, tableOutput("summaryStatsTable"))
@@ -210,6 +212,7 @@ server <- function(input, output, session) {
       
     )
   })
-}}
+}
+
 
 shinyApp(ui = ui, server = server)
