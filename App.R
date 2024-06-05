@@ -154,20 +154,32 @@ server <- function(input, output, session) {
     # Add Normal Distribution Overlay
     if ("Normal Distribution" %in% input$options) {
       if (input$numOrProp == "Number") {
-        #norm_data <- data.frame(x = seq(min(data_plot$Successes), max(data_plot$Successes), length.out = 300))
-        #norm_data$y <- dnorm(norm_data$x, mean, sd) *  diff(hist(data_plot$Successes, plot = FALSE)$breaks)[1]
-        #p <- p + geom_line(data=norm_data,aes(x=x,y=y),color='red')
-        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), col = "yellow", lwd = 1)
+        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
+                               geom = "area", color = "red", fill = "yellow", alpha = 0.2, lwd = 1, 
+                               xlim = c(0, input$extreme - 0.5))
+        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
+                               geom = "area", color = "red", fill = "orange", alpha = 0.2, lwd = 1, 
+                               xlim = c(input$extreme - 0.5, as.numeric(input$cardAttempts)))
       } else {
         p <- p + stat_function(fun = function(x) {
           scaled_x <- x * (as.numeric(input$cardAttempts))  
           total_counts * dnorm(scaled_x, mean = mean, sd = sd)
-        }, xlim = c(0, 1), col = "yellow", lwd = 1)
+        }, 
+        geom = "area", fill = "yellow", color = "red", alpha = 0.2,
+        xlim = c(0, input$extreme - 0.05))
+        p <- p + stat_function(fun = function(x) {
+          scaled_x <- x * (as.numeric(input$cardAttempts))  
+          total_counts * dnorm(scaled_x, mean = mean, sd = sd)
+        }, 
+        geom = "area", fill = "orange", color = "red", alpha = 0.2, lwd = 1, 
+        xlim = c(input$extreme - 0.05, 1))
       }
     }
     
     return(p)
   })
+  
+  
   
   
   output$summaryStatsUI <- renderUI({
@@ -206,9 +218,9 @@ server <- function(input, output, session) {
   })
   
   output$binomDistUI <- renderUI({
-      fluidRow(
-        column(12, tableOutput("binomDistTable"))
-      )
+    fluidRow(
+      column(12, tableOutput("binomDistTable"))
+    )
   })
   
   output$binomDistTable <- renderTable({
