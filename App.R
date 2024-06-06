@@ -1,13 +1,14 @@
 library(shiny)
 library(ggplot2)
-library(dplyr)
-library(readxl)
+library(tidyverse)
+
 
 # Load data
-data <- PsychicApp_Sample1_Data
+data <- PsychicSample1
+
+
 data <- data %>% 
   mutate(successratio = Successes / NumTries) 
-
 
 ui <- fluidPage(
   titlePanel("Psychic Models"),
@@ -19,13 +20,13 @@ ui <- fluidPage(
                   selected = "sample1"),
       
       selectInput("cardNum", 
-                  "Card Numbers:", 
+                  "Number of Cards:", 
                   choices = c(2,5), 
                   selected = 2, 
                   multiple = FALSE),
       
       selectInput("cardAttempts", 
-                  "Card Attempts:", 
+                  "Attempts:", 
                   choices = c(10,20,50), 
                   selected = 10, 
                   multiple = FALSE),
@@ -104,29 +105,31 @@ server <- function(input, output, session) {
     p <- if (input$numOrProp == "Number") { 
       # Histogram for number data
       ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
-        geom_histogram(binwidth = 1, bins = 10, color = "white", alpha = 1, show.legend = FALSE,cex.axis = 2) +
-        geom_vline(xintercept = input$extreme - 0.5, color = "darkred",  linetype = "dashed", size = 1) +
-        scale_fill_manual(values = c("gray", "orange")) + 
+        geom_histogram(binwidth = 1, color = "blue4", alpha = .5, show.legend = FALSE) +
+        geom_vline(xintercept = input$extreme - 0.5, color = "darkblue",  linetype = "dashed", size = 1) +
+        scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
-          title = "Histogram of Proportion of Successes",
+          title = "Histogram of Number of Successes",
           y = "Frequency",
           x = "Number of Successes"
         ) +
-        theme_grey() +
-        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
+        theme_bw() +
+        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold")) +
+        scale_x_continuous(breaks = seq(0, 10, by = 1))
     } else {
       # Histogram for proportion data
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
-        geom_histogram(binwidth = 0.1, bins = 10, color = "white", alpha = 1, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.05, color = "darkred", linetype = "dashed", size = 1) +
-        scale_fill_manual(values = c("gray", "orange", "red", "pink")) + 
+        geom_histogram(binwidth = 0.1, color = "blue4", alpha = 1, show.legend = FALSE) +
+        geom_vline(xintercept = input$extreme - 0.05, color = "darkblue", linetype = "dashed", size = 1) +
+        scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
           title = "Histogram of Proportion of Successes",
           y = "Frequency",
           x = "Proportion of Successes"
         ) +
-        theme_grey() +
-        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
+        theme_bw() +
+        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold")) +
+        scale_x_continuous(breaks = seq(0, 10, by = 1))
     } # if/else
     
     prob <- ifelse(as.numeric(input$cardNum) == 5, 0.2, 0.5)
@@ -140,13 +143,13 @@ server <- function(input, output, session) {
         binom_data <- data.frame(Successes = 0:as.numeric(input$cardAttempts))
         binom_data$Frequency <- dbinom(binom_data$Successes, size = as.numeric(input$cardAttempts), prob = prob) * total_counts
         p <- p + geom_histogram(data = binom_data, aes(y = Frequency, fill = binom_data$Successes >= input$extreme), 
-                                binwidth = 1, bins = 10, stat = "identity", color = "red", alpha = 0.3, position = "identity")
+                                binwidth = 1, stat = "identity", color = "gold", fill = "yellow", alpha = 0.5, position = "identity",show.legend = FALSE)
       } else {
         # Binomial distribution for proportion data
         binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
         binom_data$Frequency <- dbinom(0:as.numeric(input$cardAttempts), size = as.numeric(input$cardAttempts), prob = prob) * total_counts
         p <- p + geom_histogram(data = binom_data, aes(x = Proportion, y = Frequency, fill = binom_data$Proportion >= input$extreme), 
-                                binwidth = 0.1, bins = 10, stat = "identity", color = "red", alpha = 0.3, position = "identity")
+                                binwidth = 0.1, stat = "identity", color = "gold", fill = "yellow",alpha = 0.5, position = "identity", show.legend = FALSE)
         
       } # if/else
     } # if/else
@@ -155,23 +158,21 @@ server <- function(input, output, session) {
     if ("Normal Distribution" %in% input$options) {
       if (input$numOrProp == "Number") {
         p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
-                               geom = "area", color = "red", fill = "yellow", alpha = 0.2, lwd = 1, 
-                               xlim = c(0, input$extreme - 0.5))
-        p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
-                               geom = "area", color = "red", fill = "orange", alpha = 0.2, lwd = 1, 
-                               xlim = c(input$extreme - 0.5, as.numeric(input$cardAttempts)))
+                               geom = "area", color = "gold", fill = "yellow", alpha = 0.5, lwd = 1,
+                               xlim = c(mean-3*sd, mean+3*sd))
+        
       } else {
         p <- p + stat_function(fun = function(x) {
           scaled_x <- x * (as.numeric(input$cardAttempts))  
           total_counts * dnorm(scaled_x, mean = mean, sd = sd)
         }, 
-        geom = "area", fill = "yellow", color = "red", alpha = 0.2,
+        geom = "area", fill = "yellow", color = "gold", alpha = 0.2,
         xlim = c(0, input$extreme - 0.05))
         p <- p + stat_function(fun = function(x) {
           scaled_x <- x * (as.numeric(input$cardAttempts))  
           total_counts * dnorm(scaled_x, mean = mean, sd = sd)
         }, 
-        geom = "area", fill = "orange", color = "red", alpha = 0.2, lwd = 1, 
+        geom = "area", fill = "orange", color = "gold", alpha = 0.2, lwd = 1, 
         xlim = c(input$extreme - 0.05, 1))
       }
     }
