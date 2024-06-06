@@ -72,8 +72,8 @@ server <- function(input, output, session) {
         NumTries == input$cardAttempts,
         NumCard == input$cardNum,
         Deck == input$openOrClosed
-      )
-  })
+      ) # filter
+  }) # filtered_data
   
   
   # Generate different slider UI for number or proportion inputs.
@@ -99,7 +99,11 @@ server <- function(input, output, session) {
   output$Plot <- renderPlot({
     # Get filtered data
     data_plot <- filtered_data()
+    # Get total number of data
     total_counts <- nrow(data_plot)
+    # Get bin width for generating histograms
+    bin_width <- as.numeric(input$cardAttempts) / 10
+  
     
     # Generate histogram for the chosen data
     p <- if (input$numOrProp == "Number") { 
@@ -115,11 +119,11 @@ server <- function(input, output, session) {
         ) +
         theme_bw() +
         theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold")) +
-        scale_x_continuous(breaks = seq(0, 10, by = 1))
+        scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
     } else {
       # Histogram for proportion data
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
-        geom_histogram(binwidth = 0.1, color = "blue4", alpha = 1, show.legend = FALSE) +
+        geom_histogram(binwidth = 1 / as.numeric(input$cardAttempts) , color = "blue4", alpha = 1, show.legend = FALSE) +
         geom_vline(xintercept = input$extreme - 0.05, color = "darkblue", linetype = "dashed", size = 1) +
         scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
@@ -128,10 +132,10 @@ server <- function(input, output, session) {
           x = "Proportion of Successes"
         ) +
         theme_bw() +
-        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold")) +
-        scale_x_continuous(breaks = seq(0, 10, by = 1))
+        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
     } # if/else
     
+    # Get theoretical probability, mean and standard deviation based on the chosen card number
     prob <- ifelse(as.numeric(input$cardNum) == 5, 0.2, 0.5)
     mean <- as.numeric(input$cardAttempts) * prob
     sd <- sqrt(as.numeric(input$cardAttempts) * prob * (1 - prob))
@@ -142,15 +146,23 @@ server <- function(input, output, session) {
         # Binomial distribution for number data
         binom_data <- data.frame(Successes = 0:as.numeric(input$cardAttempts))
         binom_data$Frequency <- dbinom(binom_data$Successes, size = as.numeric(input$cardAttempts), prob = prob) * total_counts
-        p <- p + geom_histogram(data = binom_data, aes(y = Frequency, fill = binom_data$Successes >= input$extreme), 
-                                binwidth = 1, stat = "identity", color = "gold", fill = "yellow", alpha = 0.5, position = "identity",show.legend = FALSE)
+        p <- p + geom_histogram(data = binom_data, binwidth = bin_width, aes(y = Frequency), 
+                                color = "gold", fill = "yellow", alpha = 0.4, 
+                                stat = "identity", position = "identity", show.legend = FALSE)
+        p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
+        if (input$extreme < (mean - 3 * sd)) {
+          p <- p + xlim(input$extreme - 0.5, mean + 3 * sd)
+        } else {
+          p <- p + xlim(mean-3*sd, mean+3*sd) 
+        }
       } else {
         # Binomial distribution for proportion data
         binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
         binom_data$Frequency <- dbinom(0:as.numeric(input$cardAttempts), size = as.numeric(input$cardAttempts), prob = prob) * total_counts
         p <- p + geom_histogram(data = binom_data, aes(x = Proportion, y = Frequency, fill = binom_data$Proportion >= input$extreme), 
-                                binwidth = 0.1, stat = "identity", color = "gold", fill = "yellow",alpha = 0.5, position = "identity", show.legend = FALSE)
-        
+                                color = "gold", fill = "yellow",alpha = 0.4, 
+                                stat = "identity", position = "identity", show.legend = FALSE)
+        p <- p + xlim((mean - 3*sd ) / as.numeric(input$cardAttempts),(mean + 3*sd ) / as.numeric(input$cardAttempts))
       } # if/else
     } # if/else
     
@@ -158,7 +170,7 @@ server <- function(input, output, session) {
     if ("Normal Distribution" %in% input$options) {
       if (input$numOrProp == "Number") {
         p <- p + stat_function(fun = function(x) total_counts * dnorm(x, mean = mean, sd = sd), 
-                               geom = "area", color = "gold", fill = "yellow", alpha = 0.5, lwd = 1,
+                               geom = "area", color = "gold", fill = "yellow", alpha = 0.3, lwd = 1,
                                xlim = c(mean-3*sd, mean+3*sd))
         
       } else {
@@ -166,14 +178,8 @@ server <- function(input, output, session) {
           scaled_x <- x * (as.numeric(input$cardAttempts))  
           total_counts * dnorm(scaled_x, mean = mean, sd = sd)
         }, 
-        geom = "area", fill = "yellow", color = "gold", alpha = 0.2,
-        xlim = c(0, input$extreme - 0.05))
-        p <- p + stat_function(fun = function(x) {
-          scaled_x <- x * (as.numeric(input$cardAttempts))  
-          total_counts * dnorm(scaled_x, mean = mean, sd = sd)
-        }, 
-        geom = "area", fill = "orange", color = "gold", alpha = 0.2, lwd = 1, 
-        xlim = c(input$extreme - 0.05, 1))
+        geom = "area", color = "gold", fill = "yellow", alpha = 0.3,
+        xlim = c((mean-3*sd )/ as.numeric(input$cardAttempts), (mean+3*sd) / as.numeric(input$cardAttempts)))
       }
     }
     
