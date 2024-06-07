@@ -1,0 +1,114 @@
+library(shiny)
+library(shinythemes)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+
+# Load data
+data <- read.csv("/Users/admin/Downloads/PsychicApp Sample1 Data - Sheet1 (1).csv")
+data <- data %>% 
+  mutate(successratio = Successes / NumTries) 
+
+# Define UI for the app
+ui <- fluidPage(
+  titlePanel("Psychic Models"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("groupID", 
+                  "Group ID:", 
+                  choices = c("sample1"), 
+                  selected = "sample1"),
+      
+      selectInput("cardNum", 
+                  "Card Numbers:", 
+                  choices = c(2,5), 
+                  selected = 2, 
+                  multiple = FALSE),
+      
+      selectInput("cardAttempts", 
+                  "Card Attempts:", 
+                  choices = c(10,20,50), 
+                  selected = 10, 
+                  multiple = FALSE),
+      
+      selectInput("numOrProp", 
+                  "Number or Proportion:", 
+                  choices = c("Number", "Proportion"), 
+                  selected = "Number"),
+      
+      
+      uiOutput("sliderUI"),
+      
+      radioButtons("options",
+                   "Options",
+                   choices = c("Binomial Distribution", "None"),
+                   selected = "None"),
+      
+      checkboxInput("sumstats", 
+                    "Summary Statistics", 
+                    value = FALSE)
+    ),
+    
+    mainPanel(
+      
+      plotOutput("Plot"),
+      uiOutput("summaryStatsUI")
+    )
+  )
+)
+
+
+
+
+  output$summaryStatsUI <- renderUI({
+    if (input$sumstats) {
+      fluidRow(
+        column(3, tableOutput("summaryStatsTable")),
+        column(3, tableOutput("binomDistTable"))
+      )
+    }
+  })
+  
+  output$summaryStatsTable <- renderTable({
+    if (input$sumstats) {
+      data_stats <- filtered_data()
+      cardAttempts <- as.numeric(input$cardAttempts)
+      extreme <- as.numeric(input$extreme)
+      cardNum <- as.numeric(input$cardNum)
+      if (input$options == "Binomial Distribution") {
+        data.frame(
+          Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(nrow(data_stats), mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
+          Theoretical = c(nrow(data_stats), cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), -Inf, qnorm(0.25, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.5, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.75, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), Inf)
+        )
+      } else {
+        data.frame(
+          Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Sample = c(nrow(data_stats), mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes))
+        )
+      }
+    }
+  })
+  
+  output$binomDistTable <- renderTable({
+    # Ensure all inputs are numeric
+    cardAttempts <- as.numeric(input$cardAttempts)
+    extreme <- as.numeric(input$extreme)
+    cardNum <- as.numeric(input$cardNum)
+    data_stats <- filtered_data()
+    sample <- if (input$numOrProp == "Number") {
+      sum(data_stats$Successes >= extreme) / nrow(data_stats)
+    } else {
+      sum(data_stats$successratio >= extreme) / nrow(data_stats)
+    }
+    binom <- if (input$numOrProp == "Number") {
+      pbinom(extreme, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
+    } else {
+      pbinom(extreme * cardAttempts, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
+    }
+    data.frame(
+      Type = c("Sample", "Binomial Distribution"),
+      Probability = c(sample, binom)
+    )
+  })
+}  
