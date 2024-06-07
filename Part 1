@@ -143,12 +143,12 @@ server <- function(input, output, session) {
         p <- p + geom_histogram(data = binom_data, binwidth = bin_width, aes(y = Frequency), 
                                 color = "gold", fill = "yellow", alpha = 0.4, 
                                 stat = "identity", position = "identity", show.legend = FALSE)
-        p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
         if (input$extreme < (mean - 3 * sd)) {
           p <- p + xlim(input$extreme - 0.5, mean + 3 * sd)
         } else {
           p <- p + xlim(mean-3*sd, mean+3*sd) 
         }
+      p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
       } else {
         # Binomial distribution for proportion data
         binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
