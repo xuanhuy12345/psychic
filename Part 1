@@ -65,8 +65,7 @@ server <- function(input, output, session) {
     data %>%
       filter(
         NumTries == input$cardAttempts,
-        NumCard == input$cardNum,
-        Deck == input$openOrClosed
+        NumCard == input$cardNum
       ) # filter
   }) # filtered_data
   
