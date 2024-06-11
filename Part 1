@@ -2,6 +2,7 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 
+
 # Load game data and combine it with sample 1 data
 sample1_data <- read.csv("PsychicSample1.csv")
 data <- readr::read_csv("https://www.stat2games.sites.grinnell.edu/data/psychic/getdata.php") 
@@ -47,7 +48,7 @@ ui <- fluidPage(
       uiOutput("sliderUI"),
       
       radioButtons("options",
-                   "Options",
+                   "Theoretical Distributions",
                    choices = c("Binomial Distribution", "None"),
                    selected = "None"),
       
@@ -75,7 +76,8 @@ server <- function(input, output, session) {
       filter(
         GroupID %in% input$groupID &
         NumTries == input$cardAttempts &
-        NumCard == input$cardNum
+        NumCard == input$cardNum &
+        Deck == "open" # make sure the data is for open deck (for page 1)
       ) # filter
   }) # filtered_data
   
@@ -129,7 +131,7 @@ server <- function(input, output, session) {
       # Histogram for number data
       ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
         geom_histogram(binwidth = 1, color = "blue4", alpha = .5, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.5, color = "darkblue",  linetype = "dashed", size = 2) +
+        geom_vline(xintercept = input$extreme - 0.5, color = "darkblue",  linetype = "longdash", size = 1) +
         scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
           title = "Histogram of Number of Successes",
