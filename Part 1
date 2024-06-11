@@ -46,7 +46,9 @@ ui <- fluidPage(
       
       checkboxInput("sumstats", 
                     "Summary Statistics", 
-                    value = FALSE)
+                    value = FALSE),
+
+      downloadButton('downloadData', label = "Psychic Data")
     ),
     
     mainPanel(
@@ -216,6 +218,14 @@ server <- function(input, output, session) {
       Probability = c(sample, binom)
     )
   })
+
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste('Data-', Sys.Date(), '.csv', sep="")
+    },
+    content = function(con) {
+      write.csv(filtered_data(), con)
+    })
 }  
 
 shinyApp(ui=ui, server=server)
