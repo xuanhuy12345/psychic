@@ -1,11 +1,16 @@
 library(shiny)
-library(shinythemes)
 library(ggplot2)
 library(dplyr)
-library(readxl)
 
-# Load data
-data <- read.csv("/Users/admin/Downloads/PsychicApp Sample1 Data - Sheet1 (1).csv")
+# Load game data and combine it with sample 1 data
+sample1_data <- read.csv("PsychicSample1.csv")
+data <- readr::read_csv("https://www.stat2games.sites.grinnell.edu/data/psychic/getdata.php") 
+data <- rbind(sample1_data, data, show_col_types = FALSE)
+
+# Get group IDs
+data$GroupID <- tolower(data$GroupID)
+all_groups <- sort(unique(data$GroupID))
+
 data <- data %>% 
   mutate(successratio = Successes / NumTries) 
 
@@ -16,17 +21,19 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput("groupID", 
                   "Group ID:", 
-                  choices = c("sample1"), 
+                  choices = c(all_groups), 
+                  multiple = TRUE,
+                  selectize = TRUE,
                   selected = "sample1"),
       
       selectInput("cardNum", 
-                  "Card Numbers:", 
+                  "Number of Cards:", 
                   choices = c(2,5), 
                   selected = 2, 
                   multiple = FALSE),
       
       selectInput("cardAttempts", 
-                  "Card Attempts:", 
+                  "Attempts:", 
                   choices = c(10,20,50), 
                   selected = 10, 
                   multiple = FALSE),
@@ -47,17 +54,17 @@ ui <- fluidPage(
       checkboxInput("sumstats", 
                     "Summary Statistics", 
                     value = FALSE),
-
+      
       downloadButton('downloadData', label = "Psychic Data")
     ),
     
     mainPanel(
-      
+      uiOutput("summarytext"),
       plotOutput("Plot"),
       uiOutput("summaryStatsUI")
     )
   )
-)
+) # ui
 
 
 # Define Server for the app
@@ -66,7 +73,8 @@ server <- function(input, output, session) {
   filtered_data <- reactive({
     data %>%
       filter(
-        NumTries == input$cardAttempts,
+        GroupID %in% input$groupID &
+        NumTries == input$cardAttempts &
         NumCard == input$cardNum
       ) # filter
   }) # filtered_data
@@ -80,33 +88,48 @@ server <- function(input, output, session) {
                   "As extreme as:", 
                   min = 0, 
                   max = max_value, 
-                  value = 7, step = 1)
+                  value = max_value / 2, 
+                  step = 1)
     } else {
       sliderInput("extreme", 
                   "As extreme as:", 
                   min = 0, 
                   max = 1, 
-                  value = 0.7, 
-                  step = 0.1)
+                  value = 0.5, 
+                  step = 1 / as.numeric(input$cardAttempts))
     } # if/else
   }) # output$sliderUI 
   
-  
+
   output$Plot <- renderPlot({
     # Get filtered data
     data_plot <- filtered_data()
+    
+    if (nrow(data_plot) == 0) {
+      #Empty data frame to return  
+      data_plot <- data.frame()
+      #Help Text
+      output$summarytext <- renderUI(
+        HTML(paste(em("There is no data with the selected characteristics")))
+      )
+      return(NULL) 
+    } else {
+      #Removing dynamic help text
+      output$summarytext <- renderUI({""})
+    }
+    
     # Get total number of data
     total_counts <- nrow(data_plot)
     # Get bin width for generating histograms
     bin_width <- as.numeric(input$cardAttempts) / 10
-  
+    
     
     # Generate histogram for the chosen data
     p <- if (input$numOrProp == "Number") { 
       # Histogram for number data
       ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
         geom_histogram(binwidth = 1, color = "blue4", alpha = .5, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.5, color = "darkblue",  linetype = "dashed", size = 1) +
+        geom_vline(xintercept = input$extreme - 0.5, color = "darkblue",  linetype = "dashed", size = 2) +
         scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
           title = "Histogram of Number of Successes",
@@ -120,7 +143,7 @@ server <- function(input, output, session) {
       # Histogram for proportion data
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
         geom_histogram(binwidth = 1 / as.numeric(input$cardAttempts) , color = "blue4", alpha = 1, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.05, color = "darkblue", linetype = "dashed", size = 1) +
+        geom_vline(xintercept = input$extreme - 1/(2*as.numeric(input$cardAttempts)), color = "darkblue", linetype = "dashed", size = 2) +
         scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
           title = "Histogram of Proportion of Successes",
@@ -145,12 +168,8 @@ server <- function(input, output, session) {
         p <- p + geom_histogram(data = binom_data, binwidth = bin_width, aes(y = Frequency), 
                                 color = "gold", fill = "yellow", alpha = 0.4, 
                                 stat = "identity", position = "identity", show.legend = FALSE)
-        if (input$extreme < (mean - 3 * sd)) {
-          p <- p + xlim(input$extreme - 0.5, mean + 3 * sd)
-        } else {
-          p <- p + xlim(mean-3*sd, mean+3*sd) 
-        }
-      p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
+        p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
+        p <- p + xlim(max(-.5,mean-4*sd), mean+4*sd) 
       } else {
         # Binomial distribution for proportion data
         binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
@@ -158,21 +177,23 @@ server <- function(input, output, session) {
         p <- p + geom_histogram(data = binom_data, aes(x = Proportion, y = Frequency, fill = binom_data$Proportion >= input$extreme), 
                                 color = "gold", fill = "yellow",alpha = 0.4, 
                                 stat = "identity", position = "identity", show.legend = FALSE)
-        p <- p + xlim((mean - 3*sd ) / as.numeric(input$cardAttempts),(mean + 3*sd ) / as.numeric(input$cardAttempts))
+        p <- p + xlim(max(-.5,mean-4*sd)/ as.numeric(input$cardAttempts),(mean + 4*sd ) / as.numeric(input$cardAttempts))
       } # if/else
-    } # if/else
-    
-    
+    } 
     return(p)
   })
-
-
+  
+  
   output$summaryStatsUI <- renderUI({
+    
     if (input$sumstats) {
       fluidRow(
-        column(3, tableOutput("summaryStatsTable")),
-        column(3, tableOutput("binomDistTable"))
-      )
+        column(6, tableOutput("binomDistTable")),
+        column(6, tableOutput("summaryStatsTable"))
+      )}
+    else{fluidRow(
+      column(6, tableOutput("binomDistTable"))
+    )
     }
   })
   
@@ -182,20 +203,32 @@ server <- function(input, output, session) {
       cardAttempts <- as.numeric(input$cardAttempts)
       extreme <- as.numeric(input$extreme)
       cardNum <- as.numeric(input$cardNum)
+      mean1 <- if (input$numOrProp == "Number") {cardAttempts * (1 / cardNum)} else {1 / cardNum}
+      sd1 <- if (input$numOrProp == "Number") {sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))} else {sqrt((1 / cardAttempts) * (1 / cardNum) * (1 - 1 / cardNum))}
+      stats1 <- if (input$numOrProp == "Number") {data_stats$Successes} else {data_stats$successratio}
+      
       if (input$options == "Binomial Distribution") {
         data.frame(
           Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
-          Sample = c(nrow(data_stats), mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes)),
-          Theoretical = c(nrow(data_stats), cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum)), -Inf, qnorm(0.25, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.5, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), qnorm(0.75, cardAttempts * (1 / cardNum), sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))), Inf)
+          Sample = c(nrow(data_stats), mean(stats1), sd(stats1), min(stats1), quantile(stats1, 0.25), median(stats1), quantile(stats1, 0.75), max(stats1)),
+          Theoretical = c(nrow(data_stats), 
+                          mean1,
+                          sd1,
+                          0, 
+                          qnorm(0.25, mean1, sd1), 
+                          qnorm(0.5, mean1, sd1), 
+                          qnorm(0.75, mean1, sd1), 
+                          if (input$numOrProp == "Number") {cardAttempts} else {1})
         )
       } else {
         data.frame(
           Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
-          Sample = c(nrow(data_stats), mean(data_stats$Successes), sd(data_stats$Successes), min(data_stats$Successes), quantile(data_stats$Successes, 0.25), median(data_stats$Successes), quantile(data_stats$Successes, 0.75), max(data_stats$Successes))
+          Sample = c(nrow(data_stats), mean(stats1), sd(stats1), min(stats1), quantile(stats1, 0.25), median(stats1), quantile(stats1, 0.75), max(stats1))
         )
       }
     }
   })
+  
   
   output$binomDistTable <- renderTable({
     # Ensure all inputs are numeric
@@ -209,16 +242,16 @@ server <- function(input, output, session) {
       sum(data_stats$successratio >= extreme) / nrow(data_stats)
     }
     binom <- if (input$numOrProp == "Number") {
-      pbinom(extreme, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
+      pbinom(extreme-1, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
     } else {
-      pbinom(extreme * cardAttempts, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
+      pbinom(extreme * cardAttempts-1, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
     }
     data.frame(
       Type = c("Sample", "Binomial Distribution"),
       Probability = c(sample, binom)
     )
   })
-
+  
   output$downloadData <- downloadHandler(
     filename = function() {
       paste('Data-', Sys.Date(), '.csv', sep="")
@@ -228,4 +261,4 @@ server <- function(input, output, session) {
     })
 }  
 
-shinyApp(ui=ui, server=server)
+shinyApp(ui=ui,server=server)
