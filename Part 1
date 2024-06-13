@@ -1,18 +1,20 @@
 library(shiny)
 library(ggplot2)
 library(dplyr)
+library(readr)
 
 
 # Load game data and combine it with sample 1 data
 sample1_data <- read.csv("PsychicSample1.csv")
-data <- readr::read_csv("https://www.stat2games.sites.grinnell.edu/data/psychic/getdata.php") 
-data <- rbind(sample1_data, data, show_col_types = FALSE)
+data.all <- readr::read_csv("https://www.stat2games.sites.grinnell.edu/data/psychic/getdata.php") 
+data.all <- rbind(sample1_data, data.all, show_col_types = FALSE)
 
 # Get group IDs
-data$GroupID <- tolower(data$GroupID)
-all_groups <- sort(unique(data$GroupID))
+data.all$PlayerID <- tolower(data.all$PlayerID)
+data.all$GroupID <- tolower(data.all$GroupID)
+all_groups <- sort(unique(data.all$GroupID))
 
-data <- data %>% 
+data.all <- data.all %>% 
   mutate(successratio = Successes / NumTries) 
 
 # Define UI for the app
@@ -22,15 +24,15 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput("groupID", 
                   "Group ID:", 
-                  choices = c(all_groups), 
+                  choices = c("all", all_groups), 
                   multiple = TRUE,
                   selectize = TRUE,
-                  selected = "sample1"),
+                  selected = "all"),
       
       selectInput("cardNum", 
                   "Number of Cards:", 
                   choices = c(2,5), 
-                  selected = 2, 
+                  selected = 5, 
                   multiple = FALSE),
       
       selectInput("cardAttempts", 
@@ -72,15 +74,23 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   # Filter the data set based on the user's selection
   filtered_data <- reactive({
-    data %>%
-      filter(
-        GroupID %in% input$groupID &
-        NumTries == input$cardAttempts &
-        NumCard == input$cardNum &
-        Deck == "open" # make sure the data is for open deck (for page 1)
-      ) # filter
+    if ("all" %in% input$groupID) {
+      data.all %>%
+        filter(
+          NumTries == input$cardAttempts &
+            NumCard == input$cardNum &
+            Deck == "open" # make sure the data is for open deck (for page 1)
+        ) # filter
+    } else {
+      data.all %>%
+        filter(
+          GroupID %in% input$groupID &
+            NumTries == input$cardAttempts &
+            NumCard == input$cardNum &
+            Deck == "open" # make sure the data is for open deck (for page 1)
+        ) # filter 
+    }
   }) # filtered_data
-  
   
   # Generate different slider UI for number or proportion inputs.
   output$sliderUI <- renderUI({
@@ -102,17 +112,18 @@ server <- function(input, output, session) {
     } # if/else
   }) # output$sliderUI 
   
-
+  
   output$Plot <- renderPlot({
     # Get filtered data
     data_plot <- filtered_data()
     
+    # Print error message if there's no data
     if (nrow(data_plot) == 0) {
       #Empty data frame to return  
       data_plot <- data.frame()
       #Help Text
       output$summarytext <- renderUI(
-        HTML(paste(em("There is no data with the selected characteristics")))
+        HTML(paste(em("There is no data with the selected characteristics.")))
       )
       return(NULL) 
     } else {
@@ -182,6 +193,8 @@ server <- function(input, output, session) {
         p <- p + xlim(max(-.5,mean-4*sd)/ as.numeric(input$cardAttempts),(mean + 4*sd ) / as.numeric(input$cardAttempts))
       } # if/else
     } 
+    
+    # return final plot
     return(p)
   })
   
