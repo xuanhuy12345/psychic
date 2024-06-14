@@ -62,8 +62,8 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      uiOutput("summarytext"),
       plotOutput("Plot"),
+      uiOutput("summarytext"),
       uiOutput("summaryStatsUI")
     )
   )
@@ -120,19 +120,19 @@ server <- function(input, output, session) {
     # Print error message if there's no data
     if (nrow(data_plot) == 0) {
       #Empty data frame to return  
-      data_plot <- data.frame()
+      data_plot <- data.frame(Successes = numeric(0), NumTries = numeric(0))
       #Help Text
       output$summarytext <- renderUI(
-        HTML(paste(em("There is no data with the selected characteristics.")))
-      )
-      return(NULL) 
+        HTML(paste0("<div style='margin-left: 20px; color: grey;'>", 
+                    em("There is no data with the selected characteristics."), 
+                    "</div><br/>")))
     } else {
       #Removing dynamic help text
       output$summarytext <- renderUI({""})
     }
     
     # Get total number of data
-    total_counts <- nrow(data_plot)
+   sample_size <- nrow(data_plot)
     # Get bin width for generating histograms
     bin_width <- as.numeric(input$cardAttempts) / 10
     
@@ -156,7 +156,7 @@ server <- function(input, output, session) {
       # Histogram for proportion data
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
         geom_histogram(binwidth = 1 / as.numeric(input$cardAttempts) , color = "blue4", alpha = 1, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 1/(2*as.numeric(input$cardAttempts)), color = "darkblue", linetype = "dashed", size = 2) +
+        geom_vline(xintercept = input$extreme - 1/(2*as.numeric(input$cardAttempts)), color = "darkblue", linetype = "longdash", size = 1) +
         scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
           title = "Histogram of Proportion of Successes",
@@ -174,6 +174,8 @@ server <- function(input, output, session) {
     
     # Add Binomial Distribution Overlay
     if ("Binomial Distribution" %in% input$options) {
+      total_counts <- ifelse(sample_size == 0, 1, sample_size)
+      
       if (input$numOrProp == "Number") {
         # Binomial distribution for number data
         binom_data <- data.frame(Successes = 0:as.numeric(input$cardAttempts))
@@ -192,6 +194,10 @@ server <- function(input, output, session) {
                                 stat = "identity", position = "identity", show.legend = FALSE)
         p <- p + xlim(max(-.5,mean-4*sd)/ as.numeric(input$cardAttempts),(mean + 4*sd ) / as.numeric(input$cardAttempts))
       } # if/else
+      
+      if  (sample_size == 0) {
+        p <- p + labs(y = "Theoretical Probability")
+      }
     } 
     
     # return final plot
@@ -200,7 +206,6 @@ server <- function(input, output, session) {
   
   
   output$summaryStatsUI <- renderUI({
-    
     if (input$sumstats) {
       fluidRow(
         column(6, tableOutput("binomDistTable")),
