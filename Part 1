@@ -155,7 +155,7 @@ server <- function(input, output, session) {
     } else {
       # Histogram for proportion data
       ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
-        geom_histogram(binwidth = 1 / as.numeric(input$cardAttempts) , color = "blue4", alpha = 1, show.legend = FALSE) +
+        geom_histogram(binwidth = 1 / as.numeric(input$cardAttempts) , color = "blue4", alpha = .5, show.legend = FALSE) +
         geom_vline(xintercept = input$extreme - 1/(2*as.numeric(input$cardAttempts)), color = "darkblue", linetype = "longdash", size = 1) +
         scale_fill_manual(values = c("steelblue2", "cyan")) + 
         labs(
@@ -183,8 +183,10 @@ server <- function(input, output, session) {
         p <- p + geom_histogram(data = binom_data, binwidth = bin_width, aes(y = Frequency), 
                                 color = "gold", fill = "yellow", alpha = 0.4, 
                                 stat = "identity", position = "identity", show.legend = FALSE)
-        p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
-        p <- p + xlim(max(-.5,mean-4*sd), mean+4*sd) 
+        p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts),
+                                    by = as.numeric(input$cardAttempts) / 10),
+                                    limits = c(max(-.5,mean-4*sd), 
+                                               max(mean+4*sd, max(data_plot$Successes) + 1, input$extreme)))
       } else {
         # Binomial distribution for proportion data
         binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
@@ -192,7 +194,10 @@ server <- function(input, output, session) {
         p <- p + geom_histogram(data = binom_data, aes(x = Proportion, y = Frequency, fill = binom_data$Proportion >= input$extreme), 
                                 color = "gold", fill = "yellow",alpha = 0.4, 
                                 stat = "identity", position = "identity", show.legend = FALSE)
-        p <- p + xlim(max(-.5,mean-4*sd)/ as.numeric(input$cardAttempts),(mean + 4*sd ) / as.numeric(input$cardAttempts))
+        p <- p + xlim(max(-.5,mean-4*sd)/ as.numeric(input$cardAttempts), 
+                      max((mean + 4*sd ) / as.numeric(input$cardAttempts), 
+                          (max(data_plot$Successes) + 1) / as.numeric(input$cardAttempts),
+                          input$extreme))
       } # if/else
       
       if  (sample_size == 0) {
