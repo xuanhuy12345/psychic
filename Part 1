@@ -49,10 +49,10 @@ ui <- fluidPage(
       
       uiOutput("sliderUI"),
       
-      radioButtons("options",
-                   "Theoretical Distributions",
-                   choices = c("Binomial Distribution", "None"),
-                   selected = "None"),
+      checkboxGroupInput("options",
+                         "Theoretical Distributions:",
+                         choices = c("Sample Data", "Binomial Distribution"),
+                         selected = "Sample Data"), 
       
       checkboxInput("sumstats", 
                     "Summary Statistics", 
@@ -131,78 +131,99 @@ server <- function(input, output, session) {
     }
     
     # Get total number of data
-   sample_size <- nrow(data_plot)
+    sample_size <- nrow(data_plot)
     # Get bin width for generating histograms
     bin_width <- as.numeric(input$cardAttempts) / 10
-    
-    
-    # Generate histogram for the chosen data
-    p <- if (input$numOrProp == "Number") { 
-      # Histogram for number data
-      ggplot(data_plot, aes(x = Successes, fill = Successes >= input$extreme)) +
-        geom_histogram(binwidth = 1, color = "purple4", alpha = .5, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 0.5, color = "darkorchid4",  linetype = "longdash", size = 1) +
-        scale_fill_manual(values = c("maroon4", "lightpink")) + 
-        labs(
-          title = "Histogram of Number of Successes",
-          y = "Frequency",
-          x = "Number of Successes"
-        ) +
-        theme_bw() +
-        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold")) +
-        scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10))
-    } else {
-      # Histogram for proportion data
-      ggplot(data_plot, aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme)) +
-        geom_histogram(binwidth = 1 / as.numeric(input$cardAttempts) , color = "purple4", alpha = .5, show.legend = FALSE) +
-        geom_vline(xintercept = input$extreme - 1/(2*as.numeric(input$cardAttempts)), color = "darkblue", linetype = "longdash", size = 1) +
-        scale_fill_manual(values = c("maroon4", "lightpink")) + 
-        labs(
-          title = "Histogram of Proportion of Successes",
-          y = "Frequency",
-          x = "Proportion of Successes"
-        ) +
-        theme_bw() +
-        theme(text = element_text(family="Times", size = 20), plot.title=element_text(face="bold"))
-    } # if/else
     
     # Get theoretical probability, mean and standard deviation based on the chosen card number
     prob <- ifelse(as.numeric(input$cardNum) == 5, 0.2, 0.5)
     mean <- as.numeric(input$cardAttempts) * prob
     sd <- sqrt(as.numeric(input$cardAttempts) * prob * (1 - prob))
     
-    # Add Binomial Distribution Overlay
+    # Base plot
+    p <- ggplot()
+    
+    
+    # Add Sample Data histogram if selected
+    if ("Sample Data" %in% input$options) {
+      if (input$numOrProp == "Number") {
+        p <- p +
+          geom_histogram(
+            data = data_plot,
+            aes(x = Successes, fill = Successes >= input$extreme),
+            binwidth = 1, color = "purple4", alpha = 0.5, show.legend = FALSE
+          ) +
+          geom_vline(xintercept = input$extreme - 0.5, color = "darkorchid4", linetype = "longdash", size = 1) +
+          scale_fill_manual(values = c("maroon4", "lightpink")) +
+          scale_x_continuous(
+            breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10),
+            limits = c(max(-0.5, mean - 4 * sd), max(mean + 4 * sd, max(data_plot$Successes) + 1, input$extreme))
+          )
+      } else {
+        p <- p +
+          geom_histogram(
+            data = data_plot,
+            aes(x = Successes / NumTries, fill = Successes / NumTries >= input$extreme),
+            binwidth = 1 / as.numeric(input$cardAttempts), color = "purple4", alpha = 0.5, show.legend = FALSE
+          ) +
+          geom_vline(xintercept = input$extreme - 1 / (2 * as.numeric(input$cardAttempts)), color = "darkblue", linetype = "longdash", size = 1) +
+          scale_fill_manual(values = c("maroon4", "lightpink"))
+      }
+    }
+    
+    # Add Binomial Distribution histogram if selected
     if ("Binomial Distribution" %in% input$options) {
       total_counts <- ifelse(sample_size == 0, 1, sample_size)
-      
       if (input$numOrProp == "Number") {
-        # Binomial distribution for number data
         binom_data <- data.frame(Successes = 0:as.numeric(input$cardAttempts))
         binom_data$Frequency <- dbinom(binom_data$Successes, size = as.numeric(input$cardAttempts), prob = prob) * total_counts
-        p <- p + geom_histogram(data = binom_data, binwidth = bin_width, aes(y = Frequency), 
-                                color = "purple4", fill = "greenyellow", alpha = 0.4, 
-                                stat = "identity", position = "identity", show.legend = FALSE)
-        p <- p + scale_x_continuous(breaks = seq(0, as.numeric(input$cardAttempts),
-                                    by = as.numeric(input$cardAttempts) / 10),
-                                    limits = c(max(-.5,mean-4*sd), 
-                                               max(mean+4*sd, max(data_plot$Successes) + 1, input$extreme)))
+        p <- p +
+          geom_histogram(
+            data = binom_data,
+            aes(x = Successes, y = Frequency),
+            binwidth = bin_width, color = "purple4", fill = "greenyellow", alpha = 0.4,
+            stat = "identity", position = "identity", show.legend = FALSE
+          ) +
+          scale_x_continuous(
+            breaks = seq(0, as.numeric(input$cardAttempts), by = as.numeric(input$cardAttempts) / 10),
+            limits = c(max(-0.5, mean - 4 * sd), max(mean + 4 * sd, max(data_plot$Successes) + 1, input$extreme))
+          )
       } else {
-        # Binomial distribution for proportion data
-        binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts)) 
+        binom_data <- data.frame(Proportion = (0:as.numeric(input$cardAttempts)) / as.numeric(input$cardAttempts))
         binom_data$Frequency <- dbinom(0:as.numeric(input$cardAttempts), size = as.numeric(input$cardAttempts), prob = prob) * total_counts
-        p <- p + geom_histogram(data = binom_data, aes(x = Proportion, y = Frequency, fill = binom_data$Proportion >= input$extreme), 
-                                color = "purple4", fill = "greenyellow",alpha = 0.4, 
-                                stat = "identity", position = "identity", show.legend = FALSE)
-        p <- p + xlim(max(-.5,mean-4*sd)/ as.numeric(input$cardAttempts), 
-                      max((mean + 4*sd ) / as.numeric(input$cardAttempts), 
-                          (max(data_plot$Successes) + 1) / as.numeric(input$cardAttempts),
-                          input$extreme))
-      } # if/else
-      
-      if  (sample_size == 0) {
-        p <- p + labs(y = "Theoretical Probability")
+        p <- p +
+          geom_histogram(
+            data = binom_data,
+            aes(x = Proportion, y = Frequency),
+            color = "purple4", fill = "greenyellow", alpha = 0.4,
+            stat = "identity", position = "identity", show.legend = FALSE
+          ) +
+          xlim(
+            max(-0.5, mean - 4 * sd) / as.numeric(input$cardAttempts),
+            max(
+              (mean + 4 * sd) / as.numeric(input$cardAttempts),
+              (max(data_plot$Successes) + 1) / as.numeric(input$cardAttempts),
+              input$extreme
+            )
+          )
       }
-    } 
+    }
+    
+    # Add labels and theme
+    p <- p +
+      labs(
+        title = ifelse(input$numOrProp == "Number", 
+                       "Histogram of Number of Successes", 
+                       "Histogram of Proportion of Successes"),
+        y = "Frequency",
+        x = ifelse(input$numOrProp == "Number", "Number of Successes", "Proportion of Successes")
+      ) +
+      theme_bw() +
+      theme(
+        text = element_text(family = "Times", size = 20),
+        plot.title = element_text(face = "bold")
+      )
+    
     
     # return final plot
     return(p)
@@ -211,11 +232,11 @@ server <- function(input, output, session) {
   output$summaryStatsUI <- renderUI({
     if (input$sumstats) {
       fluidRow(
-        column(6, uiOutput("binomDistTable")),
+        column(6, uiOutput("binomDistSummary")),
         column(6, tableOutput("summaryStatsTable"))
       )}
     else{fluidRow(
-      uiOutput("binomDistTable")
+      uiOutput("binomDistSummary")
     )
     }
   })
@@ -252,8 +273,7 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  output$binomDistTable <- renderUI({
+  output$binomDistSummary <- renderUI({
     # Ensure all inputs are numeric
     cardAttempts <- as.numeric(input$cardAttempts)
     extreme <- as.numeric(input$extreme)
@@ -276,14 +296,13 @@ server <- function(input, output, session) {
       pbinom(extreme * cardAttempts-1, size = cardAttempts, prob = 1 / cardNum, lower.tail = FALSE)
     }
     
-    
     # Generate dynamic text
     HTML(paste0(
       "<p style='font-size:16px;'>",
-      "The proportion of the samples greater than <b style='color: #8a79ff;'>", extreme, "</b> is <b>", 
+      "The proportion of the samples greater than <b style='color: purple;'>", extreme, "</b> is <b>", 
       format(sample, digits = 3, nsmall = 3), 
       "</b>.<br>",
-      "The proportion of theoretical observations greater than <b style='color: #8a79ff;'>", extreme, "</b> is <b>", 
+      "The proportion of theoretical observations greater than <b style='color: purple;'>", extreme, "</b> is <b>", 
       format(binom, digits = 3, nsmall = 3), 
       "</b>.</p>",
       "<p style='font-size:14px; color: #8a79ff;'>"
