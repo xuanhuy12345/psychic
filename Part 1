@@ -251,7 +251,7 @@ server <- function(input, output, session) {
       sd1 <- if (input$numOrProp == "Number") {sqrt(cardAttempts * (1 / cardNum) * (1 - 1 / cardNum))} else {sqrt((1 / cardAttempts) * (1 / cardNum) * (1 - 1 / cardNum))}
       stats1 <- if (input$numOrProp == "Number") {data_stats$Successes} else {data_stats$successratio}
       
-      if (input$options == "Binomial Distribution") {
+      if ("Binomial Distribution" %in% input$options &  "Sample Data" %in% input$options) {
         data.frame(
           Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
           Sample = c(nrow(data_stats), mean(stats1), sd(stats1), min(stats1), quantile(stats1, 0.25), median(stats1), quantile(stats1, 0.75), max(stats1)),
@@ -264,10 +264,22 @@ server <- function(input, output, session) {
                           qnorm(0.75, mean1, sd1), 
                           if (input$numOrProp == "Number") {cardAttempts} else {1})
         )
-      } else {
+      } else if ("Sample Data" %in% input$options){
         data.frame(
           Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
           Sample = c(nrow(data_stats), mean(stats1), sd(stats1), min(stats1), quantile(stats1, 0.25), median(stats1), quantile(stats1, 0.75), max(stats1))
+        )
+      } else if ("Binomial Distribution" %in% input$options){
+        data.frame(
+          Statistics = c("Sample Size", "Mean", "SD", "Min", "Q1", "Median", "Q3", "Max"),
+          Theoretical = c(nrow(data_stats), 
+                          mean1,
+                          sd1,
+                          0, 
+                          qnorm(0.25, mean1, sd1), 
+                          qnorm(0.5, mean1, sd1), 
+                          qnorm(0.75, mean1, sd1), 
+                          if (input$numOrProp == "Number") {cardAttempts} else {1})
         )
       }
     }
